@@ -1,0 +1,202 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package sos;
+
+/**
+ *
+ * @author Marcin
+ */
+public class ProcessManager {
+    
+    private static int licznik  = 1;
+    private static PCB INIT = new PCB(0,"INIT");
+    private static PCB ODPALONY = null;
+    
+    public ProcessManager()
+    {
+        INIT.setStan(PCB.stany.GOTOWY);
+      
+    }
+    public static void usunProces(String nazwa)
+    {
+         PCB pcb = znajdz(nazwa);
+        usunProces(pcb);
+    }
+    
+    //przenoszenie dzieci do INITA
+    
+    private static void usunProces(PCB pcb)
+    {
+        if(!pcb.getDzieci().isEmpty())
+        {
+             for(PCB dziecko : pcb.getDzieci())
+             {
+                 INIT.dodajDziecko(pcb);
+                 dziecko.setRodzic(INIT);
+             }
+        }
+        pcb.getRodzic().usunDziecko(pcb);
+    }
+    private static int getIloscDzieci(PCB node)
+    {
+        int n = node.getDzieci().size();
+        for(PCB dziecko : node.getDzieci())
+            n+=getIloscDzieci(dziecko);
+        return n;
+    }
+    //sprawdzenie czy prcoes istnieje w danym nodzie
+    private static boolean istnieje(PCB node, PCB keyNode)
+    {
+        boolean wynik = false;
+        if(node.equals(keyNode))
+            return true;
+        else
+        {
+            for(PCB dziecko: node.getDzieci())
+            {
+                if(istnieje(dziecko,keyNode))
+                    wynik = true;
+            }
+        }
+        return wynik;
+    }
+    private static boolean istnieje(PCB keyNode)
+    {
+        return istnieje(INIT,keyNode);
+                
+    }
+    public static boolean istnieje(String nazwa_procesu)
+    {
+        for(PCB dziecko: INIT.getDzieci())
+            if(dziecko.getImie().equals(nazwa_procesu))
+                return true;
+        return false;
+    }
+    public static void setStan(PCB.stany stan, PCB pcb)
+    {
+        PCB pc = znajdz(INIT,pcb);
+        pc.setStan(stan);
+    }
+    
+    public static PCB znajdz(String nazwa)
+    {
+        return INIT.znajdz(nazwa);
+    }
+    private static PCB znajdz(PCB keyNode)
+    {
+        return znajdz(INIT,keyNode);
+    }
+    private static PCB znajdz(PCB node, PCB keyNode)
+    {
+        if(node==null)
+            return null;
+        if(node.equals(keyNode))
+            return node;
+        else
+        {
+            PCB cnode = null;
+            for(PCB dziecko: node.getDzieci())
+                if((cnode=znajdz(dziecko,keyNode))!=null)
+                    return cnode;
+        }
+        return null;
+    }
+    
+    private static  void dodajProces(PCB pcb, PCB rodzic)
+    {
+        rodzic.dodajDziecko(pcb);
+        pcb.setRodzic(rodzic);
+        ++licznik;
+    }
+    public static String getNazwyDzieci(String nazwa)
+    {
+        PCB pcb = znajdz(nazwa);
+        if(pcb!=null)
+            return pcb.getNazwyDzieci();
+        else
+            return "Nie mozna znalezc procesu rodzica";
+    }
+    public static String rysujDrzewo(String nazwa)
+    {
+        PCB pcb = znajdz(nazwa);
+        if(pcb!=null)
+            return pcb.rysujDrzewo(0);
+        else
+            return "Nie mozna znalezc procesu rodzica";
+    }
+    public static String stworzProces(String nazwa, Integer program, PCB rodzic)
+    {
+        PCB proces = new PCB(licznik,nazwa);
+        
+        proces.setProgram(program);
+        
+        dodajProces(proces, rodzic);
+        
+        proces.setStan(PCB.stany.GOTOWY);
+        //Dispatcher.addPCB(proces);
+        
+        return nazwa;
+    }
+    public static String stworzProces(String nazwa, Integer program)
+    {
+        return stworzProces(nazwa, program, INIT);
+    }
+    public static String stworzProces(Integer program)
+    {
+        return stworzProces("PROGRAM *" + licznik,program,INIT);
+    }
+    public static PCB getODPALONY()
+    {
+        return ODPALONY;
+    }
+    public static void stopODPALONY()
+    {
+        PCB odpalonePCB = ODPALONY;
+        //Dispatcher.deletePCB(odpalonePCB);
+        ODPALONY.spij();
+    }
+    public static boolean zatrzymajProces(String nazwa)
+    {
+        PCB pcb = znajdz(nazwa);
+        if(pcb!=null)
+        {
+            pcb.spij();
+            //Dispatcher.deletePCB(pcb)
+            return true;
+        }
+        return false;
+    }
+    public static boolean obudzProces(String nazwa)
+    {
+        PCB pcb = znajdz(nazwa);
+        if(pcb!=null && pcb.getStan()==PCB.stany.OCZEKUJACY)
+        {
+            pcb.budz();
+            //Dispatcher.addPCB(pcb)
+            return true;
+        }
+        return false;
+        
+    }
+    public static boolean uruchomProces()
+    {
+        PCB pcb = Dispatcher.poolHead();
+        if(pcb!=null)
+        {
+            ODPALONY=pcb;
+            pcb.setStan(PCB.stany.WYKONYWANY);
+            return true;
+        }
+        else
+            return false;
+    }
+    public static void zakonczProces()
+    {
+        ODPALONY.zakoncz();
+        usunProces(ODPALONY);
+        ODPALONY=null;
+    }
+}
