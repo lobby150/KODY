@@ -1,0 +1,271 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package sos;
+
+import java.util.ArrayList;
+import java.util.List;
+
+
+public class PCB {
+
+
+  
+     public enum stany
+     {
+         NOWY, WYKONYWANY, OCZEKUJACY, GOTOWY, ZAKONCZONY;
+     }
+     private int PID;
+     private String nazwa_procesu;
+     private int PPID;
+     private stany stan;
+     
+     // private Pipe ipc
+     private int rola = 0; //0 - nieznany, 1-rodzic, 2-dziecko
+     private int numerProgramu;
+     private int wskaznik; //wskaznik na znak czytany z dysku
+     private int rozmiarProgramu;
+     
+     private int A,B,C,D,E,F; //rejestry
+     private List<PCB>dzieci;
+     private PCB rodzic;
+     
+     public PCB(int licznik,String nazwa)
+     {
+         this.PID=licznik;
+         this.nazwa_procesu=nazwa;
+         this.dzieci = new ArrayList<PCB>();
+         this.stan = stany.NOWY;
+         if(this.getRodzic()!=null)
+             this.PPID=this.getRodzic().getPID();
+         else
+             this.PPID=0;
+     }
+     
+     public void dodajDziecko(PCB dziecko)
+     {
+         dzieci.add(dziecko);
+     }
+     public void setRodzic(PCB rodzic)
+     {
+         this.rodzic= rodzic;
+         this.PPID= rodzic.getPID();
+     }
+     public void setProgram(Integer program)
+     {
+         this.numerProgramu=program;
+         //this.rozmiarProgramu= MemoryManagementUnit.sizeOfProgram(program);
+         this.wskaznik=0;
+     }
+     public boolean usunDziecko(PCB dziecko)
+     {
+         return this.dzieci.remove(dziecko);
+     }
+     public String getNazwyDzieci()
+     {
+         String wynik = "";
+         for(PCB pcb:this.dzieci)
+         {
+             wynik+=pcb.getImie()+ "\n";
+             wynik += pcb.getNazwyDzieci();
+         }
+         return wynik;
+     }
+     
+     public String rysujDrzewo(int poziom)
+     {
+         String wynik = "";
+         for(int i =0;i<poziom;i++)
+         wynik +='\t';
+             wynik+="-" + this.nazwa_procesu + " [" + this.getNazwaStanu() + " ]\n";
+             
+             for(PCB pcb:this.dzieci)
+             {
+                 wynik+=pcb.rysujDrzewo(poziom+1);
+             }
+         return wynik;
+     }
+     public boolean rowne(int PID)
+     {
+         if(PID==this.PID)return true;
+         return false;
+     }
+     
+     public boolean equals(PCB pcb)
+     {
+         if(pcb==this) return true;
+         return false;
+     }
+     public stany getStan()
+     {
+         return this.stan;
+     }
+     public String getNazwaStanu()
+     {
+         switch(this.stan)
+         {
+                case NOWY:
+                return "Nowy";
+            case WYKONYWANY:
+                return "Wykonywany";
+            case OCZEKUJACY:
+                return "Oczekujacy";
+            case GOTOWY:
+                return "Gotowy";
+            case ZAKONCZONY:
+                return "Zakonczony";
+            default:
+                return "Nieznany";
+         }
+     }
+     public void setStan(stany stan)
+     {
+         this.stan=stan;
+     }
+     public int getPID()
+     {
+         return this.PID;
+        
+     }
+     public int getPPID() {
+        return this.PPID;
+    }
+
+    public String getImie() {
+        return this.nazwa_procesu;
+    }
+
+    public PCB getRodzic() {
+        return this.rodzic;
+    }
+
+    public List<PCB> getDzieci() {
+        return this.dzieci;
+    }
+    public String toString()
+    {
+        StringBuilder desc = new StringBuilder();
+         desc.append("===== PCB =====\n");
+
+        desc.append("Nazwa: ");
+        desc.append(nazwa_procesu);
+
+        desc.append("\nPID: ");
+        desc.append(PID);
+
+        desc.append("\nStan: ");
+        desc.append(getNazwaStanu());
+
+        desc.append("\nRejestry PCB");
+        desc.append(
+                "\tA: " + A + "\tB: " + B + "\tC: " + C + "\tD: " + D + "\tE: " + E + "\tF: " + F
+        );
+
+        desc.append("\n===============");
+
+        return desc.toString();
+        
+    }
+    // public byte readNextFromMemory() throws Exception {
+      //  if(wskaznik >= rozmiarProgramu)
+      //  {
+      //      throw new Exception("End of program!");
+      //  }
+      //  else
+      //  {
+           // byte mem = MemoryManagementUnit.readFromMemory(pointer, numberOfProgram);
+       //     ++wskaznik;
+            //return mem;
+      //  }
+    //}
+    
+     public void spij()
+     {
+         this.A = Procesor.A;
+        this.B = Procesor.B;
+         this.C = Procesor.C;
+         this.D = Procesor.D;
+       this.E = Procesor.E;
+         this.F = Procesor.F;
+        this.stan = stany.OCZEKUJACY;
+     }
+        public void budz(){
+        Procesor.A = this.A;
+        Procesor.B = this.B;
+     Procesor.C = this.C;
+       Procesor.D = this.D;
+        Procesor.E = this.E;
+        Procesor.F = this.F;
+       this.stan = stany.GOTOWY;
+    } 
+      public void zakoncz()
+      {
+          this.stan = stany.ZAKONCZONY;
+          
+         // if(this.rola==1)
+              //this.ipc.finish();
+              boolean czyOdblokowane = false;
+          if(rodzic!=null)
+          {
+              for(PCB rodzenstwo:rodzic.getDzieci())
+              {
+                  if(rodzenstwo.getStan()!=stan.GOTOWY && rodzenstwo.getStan()!=stany.OCZEKUJACY)
+                  {
+                      czyOdblokowane = true;
+                  }
+              }
+          }
+          if(czyOdblokowane)
+              ProcessManager.obudzProces(rodzic.getImie());
+              
+      }
+      
+      public void fork()
+      {
+          this.rola=1;
+          ProcessManager.stworzProces(nazwa_procesu+"FORK",numerProgramu,this );
+          ProcessManager.zatrzymajProces(nazwa_procesu);
+          
+          PCB noweDziecko = znajdz(nazwa_procesu+"FORK");
+          
+          noweDziecko.A = this.A;
+        noweDziecko.B = this.B;
+      noweDziecko.C = this.C;
+        noweDziecko.D = this.D;
+        noweDziecko.E = this.E;
+       noweDziecko.F = this.F;
+
+        //noweDziecko.ipc = new Pipe(this.ipc);
+        noweDziecko.rola = 2;
+      }
+        
+     //  public void pipe()
+    //{
+    //    this.ipc = new Pipe();
+   // }
+
+    //public Pipe getIpc()
+   // {
+   //     return this.ipc;
+   // }
+      
+      public PCB znajdz(String nazwa)
+      {
+          if(nazwa_procesu.equals(nazwa))
+              return this;
+          for(PCB dziecko : dzieci)
+          {
+              PCB wynik = dziecko.znajdz(nazwa);
+              
+              if(wynik!=null)
+                  return wynik;
+          }
+          return null;
+      }
+      public void skocz(int gdzie)
+      {
+          wskaznik = gdzie;
+      }
+}
